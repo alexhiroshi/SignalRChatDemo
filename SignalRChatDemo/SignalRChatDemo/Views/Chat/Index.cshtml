@@ -1,0 +1,81 @@
+﻿@{
+    ViewBag.Title = "Chat Demo";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>Chat</h2>
+<div class="row">
+    <div class="users col-md-2">
+        <div class="thumbnail">
+            <div id="users-list"></div>
+        </div>
+    </div>
+    <div class="chat col-md-10">
+        <div class="thumbnail">
+            <ul id="chat-list"></ul>
+        </div>
+    </div>
+    <hr />
+    <div class="col-md-12">
+        <form class="form-inline">
+            <div class="form-group col-md-2">
+                <label class="control-label" for="message">To: <em class="messageTo">All</em></label>
+            </div>
+            <div class="form-group col-md-10">
+                <input type="text" placeholder="Message" id="message" name="message" class="message form-control" />
+                <input type="button" class="btn btn-primary btn-send" value="Send" />
+            </div>
+        </form>
+    </div>
+</div>
+
+@section scripts {
+    <script src="~/Scripts/jquery.signalR-2.1.2.min.js"></script>
+    <script src="~/signalr/hubs"></script>
+    <script>
+        $(function () {
+            var chat = $.connection.chatHub
+                , messageTo = "All";
+
+            chat.client.showMessage = function (username, message) {
+                $('#chat-list').append("<li><strong>" + username + ":</strong> " + message + "</li>");
+                $('.chat > div').scrollTop($('#chat-list')[0].scrollHeight);
+            };
+
+            chat.client.updateUserOnline = function (usersOnline) {
+                var currentUser = "@User.Identity.Name";
+
+                $('#users-list').html('<div><span class="label label-default">All</span></div>');
+                $.each(JSON.parse(usersOnline), function (index, data) {
+                    var iconClass = data.trim() === currentUser ? "glyphicon-star" : "glyphicon-user"
+                      , userClass = data.trim() === currentUser ? "primary" : "default";
+                    $('#users-list').append('<div><span class="label label-' + userClass + '"><span class="glyphicon ' + iconClass + '" aria-hidden="true"></span> ' + data + '</span></div>');
+                });
+
+                $('.users .label-default').on('click', function (e) {
+                    messageTo = $(this).text().trim();
+                    $('.messageTo').text(messageTo);
+                    $('.message').focus();
+                });
+            };
+
+            $.connection.hub.start().done(function () {
+                $('.btn-send').on('click', function (e) {
+                    e.preventDefault();
+                    sendMessage();
+                });
+                $('form').submit(function (e) {
+                    e.preventDefault();
+                    sendMessage();
+                });
+            });
+
+            function sendMessage() {
+                var m = $('.message');
+                chat.server.sendMessage(messageTo, m.val());
+                m.val('').focus();
+            }
+        });
+    </script>
+}
+
